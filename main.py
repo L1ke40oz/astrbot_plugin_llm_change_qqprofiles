@@ -1,3 +1,5 @@
+import shutil
+
 import astrbot.api.message_components as Comp
 from astrbot import logger
 from astrbot.api import llm_tool
@@ -6,10 +8,6 @@ from astrbot.api.event.filter import on_llm_request
 from astrbot.api.provider import ProviderRequest
 from astrbot.api.star import Context, Star
 from astrbot.core.config.astrbot_config import AstrBotConfig
-from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
-    AiocqhttpMessageEvent,
-)
-from astrbot.core.star.filter.permission import PermissionType
 from astrbot.core.star.star_tools import StarTools
 
 from .status import status_mapping
@@ -20,8 +18,42 @@ class QQProfilePlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.conf = config
-        self.avatar_dir = StarTools.get_data_dir("astrbot_plugin_qqprofile") / "avatar"
+        self.avatar_dir = (
+            StarTools.get_data_dir("astrbot_plugin_llm_change_qqprofiles") / "avatar"
+        )
         self.avatar_dir.mkdir(parents=True, exist_ok=True)
+
+    def _extract_image_url(self, event: AstrMessageEvent) -> str | None:
+        chain = event.get_messages()
+        for seg in chain:
+            if isinstance(seg, Comp.Image):
+                return seg.url
+            if isinstance(seg, Comp.Reply) and seg.chain:
+                for reply_seg in seg.chain:
+                    if isinstance(reply_seg, Comp.Image):
+                        return reply_seg.url
+        return None
+
+    async def _apply_avatar(
+        self, event: AstrMessageEvent, path: str | None = None
+    ) -> str:
+        img_url = path or self._extract_image_url(event)
+        if not img_url:
+            return "修改QQ头像失败：当前消息或引用消息中没有图片。"
+
+        await event.bot.set_qq_avatar(file=img_url)
+
+        save_path = self.avatar_dir / "current.jpg"
+        try:
+            if path:
+                shutil.copyfile(path, save_path)
+            else:
+                await download_image(img_url, str(save_path))
+            logger.debug(f"头像已保存到：{save_path}")
+        except Exception as e:
+            logger.error(f"保存头像失败：{e}")
+
+        return "已将QQ头像改成当前消息或引用消息中的图片。"
 
     async def _apply_nickname(self, event: AstrMessageEvent, nickname: str) -> str:
         nickname = nickname.strip()
@@ -50,36 +82,16 @@ class QQProfilePlugin(Star):
         logger.debug(f"已更新QQ状态：{status_name}")
         return f"已将QQ在线状态修改为：{status_name}"
 
-    @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("设置头像")
-    async def set_avatar(self, event: AiocqhttpMessageEvent):
-        "将当前消息或引用消息中的图片设置为头像"
-        chain = event.get_messages()
-        img_url = None
-        for seg in chain:
-            if isinstance(seg, Comp.Image):
-                img_url = seg.url
-                break
-            if isinstance(seg, Comp.Reply) and seg.chain:
-                for reply_seg in seg.chain:
-                    if isinstance(reply_seg, Comp.Image):
-                        img_url = reply_seg.url
-                        break
-                if img_url:
-                    break
-        if not img_url:
-            yield event.plain_result("需要引用一张图片")
-            return
+    @llm_tool("qqprofile_set_avatar")
+    async def qqprofile_set_avatar(
+        self, event: AstrMessageEvent, path: str | None = None
+    ) -> str:
+        """将QQ头像修改为当前消息或引用消息中的图片。
 
-        await event.bot.set_qq_avatar(file=img_url)
-        yield event.plain_result("我换头像啦~")
-
-        save_path = self.avatar_dir / "current.jpg"
-        try:
-            await download_image(img_url, str(save_path))
-            logger.debug(f"头像已保存到：{save_path}")
-        except Exception as e:
-            logger.error(f"保存头像失败：{e}")
+        Args:
+            path(string): 当前消息图片转换出的本地文件路径；未提供时会回退到当前消息或引用消息中的图片。
+        """
+        return await self._apply_avatar(event, path)
 
     @llm_tool("qqprofile_set_nickname")
     async def qqprofile_set_nickname(
@@ -130,7 +142,6 @@ class QQProfilePlugin(Star):
             return
 
         supported_statuses = "、".join(status_mapping.keys())
-        request.system_prompt += (
-            "\n"
-            + template.format(supported_statuses=supported_statuses)
+        request.system_prompt += "\n" + template.format(
+            supported_statuses=supported_statuses
         )
