@@ -1,14 +1,104 @@
-# astrbot-plugin-helloworld
+# 插件介绍
 
-AstrBot 插件模板 / A template plugin for AstrBot plugin feature
+可以通过命令更换 Bot 头像，LLM 也可以在对话过程中根据语气、情绪和氛围，自主决定是否调用工具修改昵称、个性签名和在线状态。
 
-> [!NOTE]
-> This repo is just a template of [AstrBot](https://github.com/AstrBotDevs/AstrBot) Plugin.
-> 
-> [AstrBot](https://github.com/AstrBotDevs/AstrBot) is an agentic assistant for both personal and group conversations. It can be deployed across dozens of mainstream instant messaging platforms, including QQ, Telegram, Feishu, DingTalk, Slack, LINE, Discord, Matrix, etc. In addition, it provides a reliable and extensible conversational AI infrastructure for individuals, developers, and teams. Whether you need a personal AI companion, an intelligent customer support agent, an automation assistant, or an enterprise knowledge base, AstrBot enables you to quickly build AI applications directly within your existing messaging workflows.
+这个插件适合想让 Bot 的外在表现更贴合当前聊天场景的使用方式，例如在轻松、低落、忙碌、活跃等不同语境下，动态调整 QQ 资料状态。
 
-# Supports
+## 功能特性
 
-- [AstrBot Repo](https://github.com/AstrBotDevs/AstrBot)
-- [AstrBot Plugin Development Docs (Chinese)](https://docs.astrbot.app/dev/star/plugin-new.html)
-- [AstrBot Plugin Development Docs (English)](https://docs.astrbot.app/en/dev/star/plugin-new.html)
+- 命令设置 QQ 头像
+- 提供 3 个 LLM 可调用工具
+  - 修改 QQ 昵称
+  - 修改 QQ 个性签名
+  - 修改 QQ 在线状态
+- 支持在 `on_llm_request` 生命周期向系统提示词注入工具说明
+- 注入提示词可在插件配置中自定义
+- 提示词支持 `{supported_statuses}` 占位符，自动展开为当前支持的状态名列表
+- 头像行为保持独立，不会被提示词引导为常规自主行为
+
+## 适用平台
+
+当前插件面向 `aiocqhttp` 协议端使用。
+
+## 安装方式
+
+将插件放入 AstrBot 插件目录，或通过插件仓库安装，然后在 AstrBot 面板中启用插件。
+
+## 配置说明
+
+请在 AstrBot 面板中进入插件配置页进行设置。
+
+目前包含以下配置项：
+
+### `inject_profile_prompt`
+
+- 类型：`bool`
+- 默认值：`true`
+- 作用：是否在 LLM 请求前注入 QQ 资料工具相关提示词
+
+关闭后，插件工具仍然存在，但模型不会额外收到这段行为引导。
+
+### `profile_prompt`
+
+- 类型：`text`
+- 默认值：内置一段引导模型按情绪自主决定是否修改昵称、签名、状态的提示词
+- 作用：定义注入给 LLM 的说明文本
+
+可在文本中使用占位符：
+
+- `{supported_statuses}`：自动替换为当前插件内支持的在线状态名称列表
+
+
+## 使用方式
+
+### 1. 管理员命令：设置头像
+
+插件保留了头像命令的人工触发方式，不会把头像修改做成常规 LLM 自主工具。
+
+可用方式：
+
+- 在当前消息中直接带图并发送 `设置头像`
+- 或引用一条带图消息后发送 `设置头像`
+
+如果命令执行成功，Bot 会立即更新 QQ 头像。
+
+## LLM 工具
+
+本插件注册了以下函数工具，供模型在合适时机调用：
+
+- `qqprofile_set_nickname`
+- `qqprofile_set_longnick`
+- `qqprofile_set_status`
+
+建议配合合适的系统提示词或人格提示词使用，让模型理解：
+
+- 资料修改是低频行为，不应频繁触发
+- 不要违背用户明确要求
+- 昵称和签名应自然、简短、安全
+- 在线状态必须从受支持列表中选择
+
+## 在线状态支持
+
+当前内置支持的状态包括：
+
+在线、Q我吧、离开、忙碌、请勿打扰、隐身、听歌中、春日限定、一起元梦、求星搭子、被掏空、今日天气、我crush了、爱你、恋爱中、好运锦鲤、水逆退散、嗨到飞起、元气满满、宝宝认证、一言难尽、难得糊涂、emo中、我太难了、我想开了、我没事、想静静、悠哉哉、去旅行、信号弱、出去浪、肝作业、学习中、搬砖中、摸鱼中、无聊中、timi中、睡觉中、熬夜中、追剧中、有亿点冷、一月你好、我的电量
+
+如果模型传入了不支持的状态名，工具会返回失败信息，并附带当前可用状态列表。
+
+## 行为说明
+
+插件当前的设计边界如下：
+
+- 头像：仅管理员命令触发
+- 昵称：可由 LLM 工具修改
+- 个性签名：可由 LLM 工具修改
+- 在线状态：可由 LLM 工具修改
+
+也就是说，这个插件更偏向“让 LLM 影响 QQ 展现层”，但依然把头像保留为更明确、可控的人工操作。
+
+## 注意事项
+
+- 本插件依赖协议端对相关 QQ 资料接口的支持情况
+- 不同实现对昵称、签名、状态接口的兼容程度可能不同
+- 当前主要面向 `aiocqhttp` 使用
+- 若头像命令未携带图片，也没有引用带图消息，命令会提示失败
