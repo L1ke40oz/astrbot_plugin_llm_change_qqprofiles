@@ -1,7 +1,9 @@
+import shutil
+
 import astrbot.api.message_components as Comp
 from astrbot import logger
 from astrbot.api import llm_tool
-from astrbot.api.event import AstrMessageEvent
+from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.event.filter import on_llm_request
 from astrbot.api.provider import ProviderRequest
 from astrbot.api.star import Context, Star
@@ -61,8 +63,10 @@ class QQProfilePlugin(Star):
                         return reply_seg.url
         return None
 
-    async def _apply_avatar(self, event: AstrMessageEvent) -> str:
-        img_url = self._extract_image_url(event)
+    async def _apply_avatar(
+        self, event: AstrMessageEvent, path: str | None = None
+    ) -> str:
+        img_url = path or self._extract_image_url(event)
         if not img_url:
             return "修改QQ头像失败：当前消息或引用消息中没有图片。"
 
@@ -70,7 +74,10 @@ class QQProfilePlugin(Star):
 
         save_path = self.avatar_dir / "current.jpg"
         try:
-            await download_image(img_url, str(save_path))
+            if path:
+                shutil.copyfile(path, save_path)
+            else:
+                await download_image(img_url, str(save_path))
             logger.debug(f"头像已保存到：{save_path}")
         except Exception as e:
             logger.error(f"保存头像失败：{e}")
@@ -105,9 +112,15 @@ class QQProfilePlugin(Star):
         return f"已将QQ在线状态修改为：{status_name}"
 
     @llm_tool("qqprofile_set_avatar")
-    async def qqprofile_set_avatar(self, event: AstrMessageEvent) -> str:
-        """将QQ头像修改为当前消息或引用消息中的图片。图片会自动从消息上下文获取，无需任何参数。"""
-        return await self._apply_avatar(event)
+    async def qqprofile_set_avatar(
+        self, event: AstrMessageEvent, path: str | None = None
+    ) -> str:
+        """将QQ头像修改为当前消息或引用消息中的图片。
+
+        Args:
+            path(string): 当前消息图片转换出的本地文件路径；未提供时会回退到当前消息或引用消息中的图片。
+        """
+        return await self._apply_avatar(event, path)
 
     @llm_tool("qqprofile_set_nickname")
     async def qqprofile_set_nickname(
