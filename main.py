@@ -1,9 +1,7 @@
-import shutil
-
 import astrbot.api.message_components as Comp
 from astrbot import logger
 from astrbot.api import llm_tool
-from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.api.event import AstrMessageEvent
 from astrbot.api.event.filter import on_llm_request
 from astrbot.api.provider import ProviderRequest
 from astrbot.api.star import Context, Star
@@ -15,6 +13,21 @@ from .utils import download_image
 
 
 class QQProfilePlugin(Star):
+    # 工具名 -> 对应的配置开关键
+    _TOOL_SWITCH_MAP = {
+        "qqprofile_set_avatar": "enable_set_avatar",
+        "qqprofile_set_nickname": "enable_set_nickname",
+        "qqprofile_set_longnick": "enable_set_longnick",
+        "qqprofile_set_status": "enable_set_status",
+    }
+    # 默认值需与 _conf_schema.json 中保持一致
+    _TOOL_SWITCH_DEFAULTS = {
+        "enable_set_avatar": False,
+        "enable_set_nickname": False,
+        "enable_set_longnick": True,
+        "enable_set_status": True,
+    }
+
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.conf = config
@@ -22,6 +35,20 @@ class QQProfilePlugin(Star):
             StarTools.get_data_dir("astrbot_plugin_llm_change_qqprofiles") / "avatar"
         )
         self.avatar_dir.mkdir(parents=True, exist_ok=True)
+
+    async def initialize(self) -> None:
+        """按配置启用/禁用四个工具。工具注册后默认为激活状态，这里只需关闭被禁用的项。"""
+        for tool_name, switch_key in self._TOOL_SWITCH_MAP.items():
+            enabled = self.conf.get(
+                switch_key, self._TOOL_SWITCH_DEFAULTS[switch_key]
+            )
+            if enabled:
+                # 确保之前被关闭过的工具在配置启用后恢复激活
+                self.context.activate_llm_tool(tool_name)
+                logger.debug(f"已启用QQ资料工具：{tool_name}")
+            else:
+                self.context.deactivate_llm_tool(tool_name)
+                logger.info(f"已按配置禁用QQ资料工具：{tool_name}")
 
     def _extract_image_url(self, event: AstrMessageEvent) -> str | None:
         chain = event.get_messages()
@@ -34,10 +61,8 @@ class QQProfilePlugin(Star):
                         return reply_seg.url
         return None
 
-    async def _apply_avatar(
-        self, event: AstrMessageEvent, path: str | None = None
-    ) -> str:
-        img_url = path or self._extract_image_url(event)
+    async def _apply_avatar(self, event: AstrMessageEvent) -> str:
+        img_url = self._extract_image_url(event)
         if not img_url:
             return "修改QQ头像失败：当前消息或引用消息中没有图片。"
 
@@ -45,10 +70,7 @@ class QQProfilePlugin(Star):
 
         save_path = self.avatar_dir / "current.jpg"
         try:
-            if path:
-                shutil.copyfile(path, save_path)
-            else:
-                await download_image(img_url, str(save_path))
+            await download_image(img_url, str(save_path))
             logger.debug(f"头像已保存到：{save_path}")
         except Exception as e:
             logger.error(f"保存头像失败：{e}")
@@ -83,15 +105,9 @@ class QQProfilePlugin(Star):
         return f"已将QQ在线状态修改为：{status_name}"
 
     @llm_tool("qqprofile_set_avatar")
-    async def qqprofile_set_avatar(
-        self, event: AstrMessageEvent, path: str | None = None
-    ) -> str:
-        """将QQ头像修改为当前消息或引用消息中的图片。
-
-        Args:
-            path(string): 当前消息图片转换出的本地文件路径；未提供时会回退到当前消息或引用消息中的图片。
-        """
-        return await self._apply_avatar(event, path)
+    async def qqprofile_set_avatar(self, event: AstrMessageEvent) -> str:
+        """将QQ头像修改为当前消息或引用消息中的图片。图片会自动从消息上下文获取，无需任何参数。"""
+        return await self._apply_avatar(event)
 
     @llm_tool("qqprofile_set_nickname")
     async def qqprofile_set_nickname(

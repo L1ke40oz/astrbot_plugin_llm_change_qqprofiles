@@ -1,4 +1,28 @@
 {
+    "enable_set_avatar": {
+        "description": "启用「修改QQ头像」工具",
+        "type": "bool",
+        "hint": "关闭后 LLM 无法调用头像工具，可避免用户分享图片时被误判为换头像指令",
+        "default": false
+    },
+    "enable_set_nickname": {
+        "description": "启用「修改QQ昵称」工具",
+        "type": "bool",
+        "hint": "关闭后 LLM 无法调用昵称修改工具",
+        "default": false
+    },
+    "enable_set_longnick": {
+        "description": "启用「修改QQ个性签名」工具",
+        "type": "bool",
+        "hint": "关闭后 LLM 无法调用个性签名修改工具",
+        "default": true
+    },
+    "enable_set_status": {
+        "description": "启用「修改QQ在线状态」工具",
+        "type": "bool",
+        "hint": "关闭后 LLM 无法调用在线状态修改工具",
+        "default": true
+    },
     "inject_profile_prompt": {
         "description": "是否向LLM注入QQ资料工具说明提示词",
         "type": "bool",

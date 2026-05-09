@@ -30,6 +30,19 @@
 
 目前包含以下配置项：
 
+### 工具启用开关
+
+四个工具分别通过独立的开关控制，默认只开启「个性签名」和「在线状态」两个工具，避免用户只是发送/分享图片时被 LLM 误判为换头像指令。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enable_set_avatar` | `bool` | `false` | 启用「修改 QQ 头像」工具 |
+| `enable_set_nickname` | `bool` | `false` | 启用「修改 QQ 昵称」工具 |
+| `enable_set_longnick` | `bool` | `true` | 启用「修改 QQ 个性签名」工具 |
+| `enable_set_status` | `bool` | `true` | 启用「修改 QQ 在线状态」工具 |
+
+关闭后对应工具不会暴露给 LLM，模型也就无法调用它。配置修改后重新加载插件即可生效。
+
 ### `inject_profile_prompt`
 
 - 类型：`bool`
