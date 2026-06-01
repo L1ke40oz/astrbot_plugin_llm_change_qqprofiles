@@ -38,3 +38,12 @@ status_mapping = {
     "追剧中": (10, 1021),
     "我的电量": (10, 1000),
 }
+
+
+# 自定义在线状态使用的表情（QQ「自定义状态」里的状态表情）。
+# 取值为表情对应的 face_id（图标ID），通过 NapCat 的 set_diy_online_status 接口设置。
+# face_type 统一使用默认值 1。
+# 注意：这里的数字需填入真实的 face_id，后续由维护者补全。
+diy_face_mapping: dict[str, int] = {
+    # "表情名": face_id,
+}
