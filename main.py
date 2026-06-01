@@ -10,7 +10,7 @@ from astrbot.api.star import Context, Star
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.star.star_tools import StarTools
 
-from .status import status_mapping
+from .status import diy_face_mapping, status_mapping
 from .utils import download_image
 
 
@@ -21,6 +21,7 @@ class QQProfilePlugin(Star):
         "qqprofile_set_nickname": "enable_set_nickname",
         "qqprofile_set_longnick": "enable_set_longnick",
         "qqprofile_set_status": "enable_set_status",
+        "qqprofile_set_diy_status": "enable_set_diy_status",
     }
     # 默认值需与 _conf_schema.json 中保持一致
     _TOOL_SWITCH_DEFAULTS = {
@@ -28,6 +29,7 @@ class QQProfilePlugin(Star):
         "enable_set_nickname": False,
         "enable_set_longnick": True,
         "enable_set_status": True,
+        "enable_set_diy_status": True,
     }
 
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -111,6 +113,28 @@ class QQProfilePlugin(Star):
         logger.debug(f"已更新QQ状态：{status_name}")
         return f"已将QQ在线状态修改为：{status_name}"
 
+    async def _apply_diy_status(
+        self, event: AstrMessageEvent, wording: str, emoji: str | None = None
+    ) -> str:
+        wording = wording.strip()
+        emoji = (emoji or "").strip()
+        face_id = diy_face_mapping.get(emoji)
+        if emoji and face_id is None:
+            supported_emojis = "、".join(diy_face_mapping.keys()) or "（暂无）"
+            return (
+                f"不支持的状态表情：{emoji}。"
+                f"可用表情有：{supported_emojis}"
+            )
+        await event.bot.set_diy_online_status(
+            face_id=face_id if face_id is not None else "",
+            face_type=1,
+            wording=wording,
+        )
+        logger.debug(f"已更新QQ自定义状态：emoji={emoji or '无'} wording={wording}")
+        if emoji:
+            return f"已将QQ自定义状态修改为：{emoji}（{wording}）"
+        return f"已将QQ自定义状态文字修改为：{wording}"
+
     @llm_tool("qqprofile_set_avatar")
     async def qqprofile_set_avatar(
         self, event: AstrMessageEvent, path: str | None = None
@@ -161,6 +185,20 @@ class QQProfilePlugin(Star):
             return "修改QQ在线状态失败：status_name 不能为空。"
         return await self._apply_status(event, status_name)
 
+    @llm_tool("qqprofile_set_diy_status")
+    async def qqprofile_set_diy_status(
+        self, event: AstrMessageEvent, wording: str, emoji: str | None = None
+    ) -> str:
+        """修改QQ自定义在线状态，可设置一句自定义状态文字，并可选地搭配一个状态表情。
+
+        Args:
+            wording(string): 要展示的自定义状态文字，应简短自然。
+            emoji(string): 可选，状态表情名称，必须是受支持的表情之一；不传则只设置文字。
+        """
+        if not wording or not wording.strip():
+            return "修改QQ自定义状态失败：wording 不能为空。"
+        return await self._apply_diy_status(event, wording, emoji)
+
     @on_llm_request()
     async def on_llm_req(self, event: AstrMessageEvent, request: ProviderRequest):
         if not self.conf.get("inject_profile_prompt", True):
@@ -171,6 +209,8 @@ class QQProfilePlugin(Star):
             return
 
         supported_statuses = "、".join(status_mapping.keys())
+        supported_diy_emojis = "、".join(diy_face_mapping.keys()) or "（暂无）"
         request.system_prompt += "\n" + template.format(
-            supported_statuses=supported_statuses
+            supported_statuses=supported_statuses,
+            supported_diy_emojis=supported_diy_emojis,
         )

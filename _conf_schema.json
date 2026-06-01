@@ -23,6 +23,12 @@
         "hint": "关闭后 LLM 无法调用在线状态修改工具",
         "default": true
     },
+    "enable_set_diy_status": {
+        "description": "启用「修改QQ自定义状态」工具",
+        "type": "bool",
+        "hint": "关闭后 LLM 无法调用自定义状态（状态表情+自定义文字）修改工具，仅 NapCat 协议端支持",
+        "default": true
+    },
     "inject_profile_prompt": {
         "description": "是否向LLM注入QQ资料工具说明提示词",
         "type": "bool",
@@ -32,7 +38,7 @@
     "profile_prompt": {
         "description": "QQ资料工具提示词",
         "type": "text",
-        "hint": "在此修改注入给LLM的QQ资料工具提示词。可使用 {supported_statuses} 占位符自动插入当前支持的状态名称列表",
-        "default": "你可以按当前对话中体现出的氛围，自主决定是否调用QQ资料工具修改自己的昵称、签名或在线状态。\n昵称和签名应简短、自然、安全，不要包含违规、攻击性、误导性的内容。\n在线状态只能从以下名称中选择：{supported_statuses}。\n头像工具不会通过提示词引导你主动调用；只有用户直接要求时才应使用更换头像相关命令。"
+        "hint": "在此修改注入给LLM的QQ资料工具提示词。可使用 {supported_statuses} 占位符插入当前支持的在线状态名称列表，{supported_diy_emojis} 占位符插入当前支持的自定义状态表情名称列表",
+        "default": "你可以按当前对话中体现出的氛围，自主决定是否调用QQ资料工具修改自己的昵称、签名、在线状态或自定义状态。\n昵称和签名应简短、自然、安全，不要包含违规、攻击性、误导性的内容。\n在线状态只能从以下名称中选择：{supported_statuses}。\n自定义状态可设置一句简短的自定义文字，并可选搭配一个状态表情；表情只能从以下名称中选择：{supported_diy_emojis}。\n头像工具不会通过提示词引导你主动调用；只有用户直接要求时才应使用更换头像相关命令。"
     }
 }
