@@ -1,6 +1,8 @@
 name: astrbot_plugin_llm_change_qqprofiles
 display_name: llm_change_qqprofiles 
-desc: 支持用户通过自然语言结合图片更换bot头像，并支持LLM按情绪自主调用昵称、签名、状态资料修改工具。 
+desc: 支持用户通过自然语言结合图片更换bot头像，并支持LLM按情绪自主调用昵称、签名、状态等资料修改工具。 
 version: v1.3.0 
 author: L1ke40oz
 repo: https://github.com/L1ke40oz/astrbot_plugin_llm_change_qqprofiles
+support_platforms:
+  - aiocqhttp
