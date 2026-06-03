@@ -11,7 +11,7 @@ from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.star.star_tools import StarTools
 
 from .status import diy_face_mapping, status_mapping
-from .utils import download_image
+from .utils import download_image, to_local_path, to_onebot_file
 
 
 class QQProfilePlugin(Star):
@@ -106,12 +106,12 @@ class QQProfilePlugin(Star):
         if not img_url:
             return "修改QQ头像失败：当前消息或引用消息中没有图片。"
 
-        await event.bot.set_qq_avatar(file=img_url)
+        await event.bot.set_qq_avatar(file=await to_onebot_file(img_url))
 
         save_path = self.avatar_dir / "current.jpg"
         try:
             if path:
-                shutil.copyfile(path, save_path)
+                shutil.copyfile(to_local_path(path), save_path)
             else:
                 await download_image(img_url, str(save_path))
             logger.debug(f"头像已保存到：{save_path}")
