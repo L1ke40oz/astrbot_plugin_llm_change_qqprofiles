@@ -54,6 +54,40 @@ class QQProfilePlugin(Star):
                 self.context.deactivate_llm_tool(tool_name)
                 logger.info(f"已按配置禁用QQ资料工具：{tool_name}")
 
+    def _own_plugin_name(self) -> str:
+        """Best-effort resolve this plugin's registered name for session checks."""
+        try:
+            from astrbot.core.star.star import star_map
+
+            meta = star_map.get(self.__class__.__module__)
+            if meta and meta.name:
+                return meta.name
+        except Exception:
+            pass
+        return "astrbot_plugin_llm_change_qqprofiles"
+
+    async def _session_inactive(self, umo: str) -> bool:
+        """Whether this plugin is disabled for the session via AstrBot custom rules.
+
+        AstrBot's per-session plugin management only filters command / message
+        handlers, not lifecycle hooks (on_llm_request) or llm_tool calls. So we
+        query the session config ourselves and skip when disabled. Fails open
+        (returns False) when the API is unavailable.
+        """
+        try:
+            from astrbot.core.star.session_plugin_manager import (
+                SessionPluginManager,
+            )
+        except Exception:
+            return False
+        try:
+            enabled = await SessionPluginManager.is_plugin_enabled_for_session(
+                umo, self._own_plugin_name()
+            )
+            return not enabled
+        except Exception:
+            return False
+
     def _extract_image_url(self, event: AstrMessageEvent) -> str | None:
         chain = event.get_messages()
         for seg in chain:
@@ -135,6 +169,8 @@ class QQProfilePlugin(Star):
             return f"已将QQ自定义状态修改为：{emoji}（{wording}）"
         return f"已将QQ自定义状态文字修改为：{wording}"
 
+    _DISABLED_MSG = "（本会话已停用 QQ 资料修改功能，未执行任何修改。）"
+
     @llm_tool("qqprofile_set_avatar")
     async def qqprofile_set_avatar(
         self, event: AstrMessageEvent, path: str | None = None
@@ -144,6 +180,8 @@ class QQProfilePlugin(Star):
         Args:
             path(string): 当前消息图片转换出的本地文件路径；未提供时会回退到当前消息或引用消息中的图片。
         """
+        if await self._session_inactive(event.unified_msg_origin):
+            return self._DISABLED_MSG
         return await self._apply_avatar(event, path)
 
     @llm_tool("qqprofile_set_nickname")
@@ -155,6 +193,8 @@ class QQProfilePlugin(Star):
         Args:
             nickname(string): 要设置的新昵称。
         """
+        if await self._session_inactive(event.unified_msg_origin):
+            return self._DISABLED_MSG
         if not nickname or not nickname.strip():
             return "修改QQ昵称失败：nickname 不能为空。"
         return await self._apply_nickname(event, nickname)
@@ -168,6 +208,8 @@ class QQProfilePlugin(Star):
         Args:
             longnick(string): 要设置的新个性签名。
         """
+        if await self._session_inactive(event.unified_msg_origin):
+            return self._DISABLED_MSG
         if not longnick or not longnick.strip():
             return "修改QQ个性签名失败：longnick 不能为空。"
         return await self._apply_longnick(event, longnick)
@@ -181,6 +223,8 @@ class QQProfilePlugin(Star):
         Args:
             status_name(string): 要设置的在线状态名称，必须是受支持的状态之一。
         """
+        if await self._session_inactive(event.unified_msg_origin):
+            return self._DISABLED_MSG
         if not status_name or not status_name.strip():
             return "修改QQ在线状态失败：status_name 不能为空。"
         return await self._apply_status(event, status_name)
@@ -195,12 +239,16 @@ class QQProfilePlugin(Star):
             wording(string): 要展示的自定义状态文字，应简短自然。
             emoji(string): 可选，状态表情名称，必须是受支持的表情之一；不传则只设置文字。
         """
+        if await self._session_inactive(event.unified_msg_origin):
+            return self._DISABLED_MSG
         if not wording or not wording.strip():
             return "修改QQ自定义状态失败：wording 不能为空。"
         return await self._apply_diy_status(event, wording, emoji)
 
     @on_llm_request()
     async def on_llm_req(self, event: AstrMessageEvent, request: ProviderRequest):
+        if await self._session_inactive(event.unified_msg_origin):
+            return
         if not self.conf.get("inject_profile_prompt", True):
             return
 
