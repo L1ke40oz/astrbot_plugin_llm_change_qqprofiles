@@ -1,4 +1,6 @@
+import os
 import shutil
+from pathlib import Path
 
 import astrbot.api.message_components as Comp
 from astrbot import logger
@@ -102,13 +104,28 @@ class QQProfilePlugin(Star):
     async def _apply_avatar(
         self, event: AstrMessageEvent, path: str | None = None
     ) -> str:
+        # 规范化路径，避免转义字符问题
+        if path:
+            path = os.path.normpath(path)
+        
         img_url = path or self._extract_image_url(event)
         if not img_url:
             return "修改QQ头像失败：当前消息或引用消息中没有图片。"
 
-        await event.bot.set_qq_avatar(file=img_url)
+        # 判断是否为 GIF
+        is_gif = False
+        if path:
+            is_gif = Path(path).suffix.lower() == '.gif'
+        elif img_url:
+            is_gif = img_url.lower().endswith('.gif')
 
-        save_path = self.avatar_dir / "current.jpg"
+        # 根据是否为 GIF 选择保存路径
+        if is_gif:
+            save_path = self.avatar_dir / "current.gif"
+        else:
+            save_path = self.avatar_dir / "current.jpg"
+
+        # 先下载/复制到本地，再上传
         try:
             if path:
                 shutil.copyfile(path, save_path)
@@ -117,6 +134,14 @@ class QQProfilePlugin(Star):
             logger.debug(f"头像已保存到：{save_path}")
         except Exception as e:
             logger.error(f"保存头像失败：{e}")
+            return f"修改QQ头像失败：保存图片时出错 ({e})"
+
+        # 使用本地文件路径上传
+        try:
+            await event.bot.set_qq_avatar(file=str(save_path))
+        except Exception as e:
+            logger.error(f"设置头像失败：{e}")
+            return f"修改QQ头像失败：上传时出错 ({e})"
 
         return "已将QQ头像改成当前消息或引用消息中的图片。"
 
