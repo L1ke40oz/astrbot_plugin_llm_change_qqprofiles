@@ -90,6 +90,18 @@ class QQProfilePlugin(Star):
         except Exception:
             return False
 
+    def _get_real_event(self, event_or_ctx) -> AstrMessageEvent:
+        """兼容 AstrBot v4.25+ 的 ContextWrapper，提取真正的 AstrMessageEvent"""
+        # 如果是新版本传来的套娃 ContextWrapper
+        if hasattr(event_or_ctx, "context"):
+            ctx = event_or_ctx.context
+            if hasattr(ctx, "event"):
+                return ctx.event
+            elif hasattr(ctx, "message_obj"):
+                return ctx.message_obj
+        # 如果已经是真正的 event (兼容老版本)
+        return event_or_ctx
+
     def _extract_image_url(self, event: AstrMessageEvent) -> str | None:
         chain = event.get_messages()
         for seg in chain:
@@ -205,9 +217,10 @@ class QQProfilePlugin(Star):
         Args:
             path(string): 当前消息图片转换出的本地文件路径；未提供时会回退到当前消息或引用消息中的图片。
         """
-        if await self._session_inactive(event.unified_msg_origin):
+        real_event = self._get_real_event(event)
+        if await self._session_inactive(real_event.unified_msg_origin):
             return self._DISABLED_MSG
-        return await self._apply_avatar(event, path)
+        return await self._apply_avatar(real_event, path)
 
     @llm_tool("qqprofile_set_nickname")
     async def qqprofile_set_nickname(
@@ -218,11 +231,12 @@ class QQProfilePlugin(Star):
         Args:
             nickname(string): 要设置的新昵称。
         """
-        if await self._session_inactive(event.unified_msg_origin):
+        real_event = self._get_real_event(event)
+        if await self._session_inactive(real_event.unified_msg_origin):
             return self._DISABLED_MSG
         if not nickname or not nickname.strip():
             return "修改QQ昵称失败：nickname 不能为空。"
-        return await self._apply_nickname(event, nickname)
+        return await self._apply_nickname(real_event, nickname)
 
     @llm_tool("qqprofile_set_longnick")
     async def qqprofile_set_longnick(
@@ -233,11 +247,12 @@ class QQProfilePlugin(Star):
         Args:
             longnick(string): 要设置的新个性签名。
         """
-        if await self._session_inactive(event.unified_msg_origin):
+        real_event = self._get_real_event(event)
+        if await self._session_inactive(real_event.unified_msg_origin):
             return self._DISABLED_MSG
         if not longnick or not longnick.strip():
             return "修改QQ个性签名失败：longnick 不能为空。"
-        return await self._apply_longnick(event, longnick)
+        return await self._apply_longnick(real_event, longnick)
 
     @llm_tool("qqprofile_set_status")
     async def qqprofile_set_status(
@@ -248,11 +263,12 @@ class QQProfilePlugin(Star):
         Args:
             status_name(string): 要设置的在线状态名称，必须是受支持的状态之一。
         """
-        if await self._session_inactive(event.unified_msg_origin):
+        real_event = self._get_real_event(event)
+        if await self._session_inactive(real_event.unified_msg_origin):
             return self._DISABLED_MSG
         if not status_name or not status_name.strip():
             return "修改QQ在线状态失败：status_name 不能为空。"
-        return await self._apply_status(event, status_name)
+        return await self._apply_status(real_event, status_name)
 
     @llm_tool("qqprofile_set_diy_status")
     async def qqprofile_set_diy_status(
@@ -264,15 +280,17 @@ class QQProfilePlugin(Star):
             wording(string): 要展示的自定义状态文字，应简短自然。
             emoji(string): 可选，状态表情名称，必须是受支持的表情之一；不传则只设置文字。
         """
-        if await self._session_inactive(event.unified_msg_origin):
+        real_event = self._get_real_event(event)
+        if await self._session_inactive(real_event.unified_msg_origin):
             return self._DISABLED_MSG
         if not wording or not wording.strip():
             return "修改QQ自定义状态失败：wording 不能为空。"
-        return await self._apply_diy_status(event, wording, emoji)
+        return await self._apply_diy_status(real_event, wording, emoji)
 
     @on_llm_request()
     async def on_llm_req(self, event: AstrMessageEvent, request: ProviderRequest):
-        if await self._session_inactive(event.unified_msg_origin):
+        real_event = self._get_real_event(event)
+        if await self._session_inactive(real_event.unified_msg_origin):
             return
         if not self.conf.get("inject_profile_prompt", True):
             return
