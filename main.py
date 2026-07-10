@@ -288,7 +288,7 @@ class QQProfilePlugin(Star):
         return await self._apply_diy_status(real_event, wording, emoji)
 
     @on_llm_request()
-    async def on_llm_req(self, event: AstrMessageEvent, request: ProviderRequest):
+    async def on_llm_req(self, event: AstrMessageEvent, request: ProviderRequest, *args, **kwargs):
         real_event = self._get_real_event(event)
         if await self._session_inactive(real_event.unified_msg_origin):
             return
