@@ -210,7 +210,7 @@ class QQProfilePlugin(Star):
 
     @llm_tool("qqprofile_set_avatar")
     async def qqprofile_set_avatar(
-        self, event: AstrMessageEvent, path: str | None = None
+        self, event: AstrMessageEvent, path: str | None = None, **kwargs
     ) -> str:
         """将QQ头像修改为当前消息或引用消息中的图片。
 
@@ -224,7 +224,7 @@ class QQProfilePlugin(Star):
 
     @llm_tool("qqprofile_set_nickname")
     async def qqprofile_set_nickname(
-        self, event: AstrMessageEvent, nickname: str
+        self, event: AstrMessageEvent, nickname: str, **kwargs
     ) -> str:
         """修改QQ昵称。
 
@@ -240,7 +240,7 @@ class QQProfilePlugin(Star):
 
     @llm_tool("qqprofile_set_longnick")
     async def qqprofile_set_longnick(
-        self, event: AstrMessageEvent, longnick: str
+        self, event: AstrMessageEvent, longnick: str, **kwargs
     ) -> str:
         """修改QQ个性签名。
 
@@ -256,7 +256,7 @@ class QQProfilePlugin(Star):
 
     @llm_tool("qqprofile_set_status")
     async def qqprofile_set_status(
-        self, event: AstrMessageEvent, status_name: str
+        self, event: AstrMessageEvent, status_name: str, **kwargs
     ) -> str:
         """修改QQ在线状态。
 
@@ -272,7 +272,7 @@ class QQProfilePlugin(Star):
 
     @llm_tool("qqprofile_set_diy_status")
     async def qqprofile_set_diy_status(
-        self, event: AstrMessageEvent, wording: str, emoji: str | None = None
+        self, event: AstrMessageEvent, wording: str, emoji: str | None = None, **kwargs
     ) -> str:
         """修改QQ自定义在线状态，可设置一句自定义状态文字，并可选地搭配一个状态表情。
 
