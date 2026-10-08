@@ -139,7 +139,7 @@
 - 当前主要面向 `aiocqhttp` 使用
 - 若用户要求换头像，但当前消息和引用消息都没有图片，头像工具会提示失败
 
-- ## 项目来源与改动
+## 项目来源与改动
 
 本项目基于 [Zhalslar/astrbot_plugin_qqprofile](https://github.com/Zhalslar/astrbot_plugin_qqprofile) 二次开发。原项目提供通过指令修改 QQ 头像、昵称、签名和状态的功能。
 
